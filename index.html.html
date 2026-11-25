@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เกมทำแซนด์วิชแสนสนุก - Sandwich Master</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js สำหรับเสียงเอฟเฟกต์และเพลงประกอบ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Canvas Confetti สำหรับเอฟเฟกต์ฉลองเมื่อทำสำเร็จ -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Google Fonts: Kanit & Mali สำหรับฟอนต์ภาษาไทยที่น่ารักและอ่านง่าย -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;700&family=Mali:wght@500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            /* สีพื้นหลังสำรองกรณีรูปภาพยังไม่ได้ใส่หรือโหลดไม่ขึ้น */
+            background-color: #fef3c7;
+            /* ตั้งค่าภาพพื้นหลัง */
+            background-image: url('https://i.pinimg.com/736x/07/12/26/0712261eb2f2d2d5a93812e1a360af7d.jpg'); 
+            background-size: cover;         /* ขยายภาพให้เต็มหน้าจอพอดี */
+            background-position: center;    /* จัดกึ่งกลางภาพ */
+            background-repeat: no-repeat;   /* ไม่แสดงภาพซ้ำ */
+            background-attachment: fixed;   /* ล็อกพื้นหลังไม่ให้เลื่อนตาม */
+            min-height: 100vh;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        .font-cute {
+            font-family: 'Mali', cursive;
+        }
+
+        /* อนิเมชันลอยตัวสำหรับไอคอนหน้าแรก */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(3deg); }
+        }
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* อนิเมชันเขย่าเมื่อทำผิด */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+        .animate-shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        /* สไตล์การหมุนการ์ด (3D Flip & Spin) */
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+        .card-inner {
+            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+        .card-flipped {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* เอฟเฟกต์การสุ่มหมุนการ์ด */
+        @keyframes cardShuffle {
+            0% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.08) rotate(-5deg); }
+            50% { transform: scale(0.95) rotate(5deg); }
+            75% { transform: scale(1.05) rotate(-3deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+        .shuffling {
+            animation: cardShuffle 0.35s infinite;
+        }
+
+        /* สไตล์ปุ่มเกมแบบ 3D Bubble */
+        .btn-game {
+            transition: all 0.15s ease;
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.2);
+        }
+        .btn-game:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        /* สไตล์พื้นที่วางแซนด์วิช (จานอาหาร) */
+        .plate-shadow {
+            box-shadow: 0 12px 25px rgba(0,0,0,0.12), inset 0 -4px 10px rgba(0,0,0,0.05);
+        }
+
+        /* อนิเมชันวางวัตถุดิบลงจาน */
+        @keyframes dropIn {
+            0% { transform: translateY(-40px) scale(1.1); opacity: 0; }
+            70% { transform: translateY(5px) scale(0.95); opacity: 1; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .ingredient-dropped {
+            animation: dropIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* สไตล์สัญลักษณ์ผังงาน (Flowchart Shapes) */
+        .flow-terminator {
+            border-radius: 9999px;
+        }
+        .flow-process {
+            border-radius: 0.75rem;
+        }
+
+        /* ซ่อน Scrollbar แต่ยังเลื่อนได้ */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col min-h-screen">
+
+    <!-- แถบควบคุมเสียงด้านบนขวา (แสดงทุกหน้า) -->
+    <div class="fixed top-3 right-3 z-50 flex items-center gap-2">
+        <button id="btn-toggle-music" onclick="toggleMusic()" class="bg-white/90 hover:bg-white text-pink-600 p-2.5 rounded-full shadow-lg border-2 border-pink-200 transition transform hover:scale-105 flex items-center gap-1.5 text-sm font-bold" title="เปิด/ปิดเพลงประกอบ">
+            <span id="music-icon" class="text-lg">🔇</span>
+            <span class="hidden sm:inline" id="music-text">เปิดเพลง</span>
+        </button>
+    </div>
+
+    <!-- ปุ่มสำหรับคุณครูมุมซ้ายบน (แสดงเฉพาะหน้าแรก) -->
+    <div id="admin-entry-btn" class="fixed top-3 left-3 z-50">
+        <button onclick="openAdminModal()" class="bg-slate-800/90 hover:bg-slate-900 text-white px-3.5 py-2 rounded-full shadow-lg border-2 border-slate-600 transition transform hover:scale-105 flex items-center gap-1.5 text-xs sm:text-sm font-bold">
+            <span>👩‍🏫</span>
+            <span>สำหรับคุณครู (ดูคะแนน)</span>
+        </button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- หน้า 1: หน้าแรกเข้าเกม (Landing Page) -->
+    <!-- ========================================== -->
+    <section id="screen-home" class="flex-1 flex flex-col items-center justify-center p-4 text-center">
+        <div class="max-w-lg w-full bg-white/90 backdrop-blur-md rounded-3xl p-8 sm:p-10 shadow-2xl border-4 border-amber-300">
+            <!-- ไอคอนแซนด์วิชขยับได้ -->
+            <div class="animate-float inline-block mb-4">
+                <div class="w-32 h-32 sm:w-40 sm:h-40 bg-gradient-to-tr from-amber-200 to-yellow-100 rounded-full flex items-center justify-center shadow-inner border-4 border-amber-400 mx-auto">
+                    <span class="text-7xl sm:text-8xl">🥪</span>
+                </div>
+            </div>
+
+            <h1 class="font-cute text-3xl sm:text-5xl font-bold text-amber-600 drop-shadow-sm mb-2">
+                เชฟน้อยทำแซนด์วิช
+            </h1>
+            <p class="text-slate-600 text-base sm:text-lg mb-8">
+                มาฝึกเรียงลำดับชั้นแซนด์วิชแสนอร่อยตามสูตรลับกันเถอะ!
+            </p>
+
+            <div class="space-y-4">
+                <button onclick="goToRegister()" class="btn-game w-full py-4 px-8 bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 hover:from-amber-500 hover:to-rose-500 text-white font-cute text-2xl sm:text-3xl font-bold rounded-2xl flex items-center justify-center gap-3 shadow-xl">
+                    <span>🎮</span>
+                    <span> กดเพื่อฝึกเป็นเชฟนักคิดตัวจริง!! </span>
+                </button>
+
+                <!-- เมนูที่ 2: ด่านผังงานอัลกอริทึม (โผล่ขึ้นมาเมื่อทำแซนด์วิชเสร็จแล้ว) -->
+                <div id="menu-stage-2" class="hidden pt-2 border-t-2 border-dashed border-amber-200">
+                    <div class="text-xs font-bold text-indigo-600 mb-2 flex items-center justify-center gap-1">
+                        <span>✨</span> ปลดล็อกด่านใหม่แล้ว! เชฟ <span id="unlocked-student-name"></span>
+                    </div>
+                    <button onclick="goToFlowchartStage()" class="btn-game w-full py-4 px-6 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:to-pink-600 text-white font-cute text-xl sm:text-2xl font-bold rounded-2xl flex items-center justify-center gap-3 shadow-xl animate-bounce">
+                        <span>📊</span>
+                        <span>ด่านที่ 2: ผังงาน (Flowchart)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- หน้า 2: หน้าลงทะเบียนนักเรียน (Registration) -->
+    <!-- ========================================== -->
+    <section id="screen-register" class="hidden flex-1 flex flex-col items-center justify-center p-4">
+        <div class="max-w-md w-full bg-white/95 backdrop-blur-md rounded-3xl p-6 sm:p-8 shadow-2xl border-4 border-sky-300">
+            <div class="text-center mb-6">
+                <span class="text-5xl block mb-2">🧑‍🍳</span>
+                <h2 class="font-cute text-2xl sm:text-3xl font-bold text-sky-600">ลงทะเบียนเชฟน้อย</h2>
+                <p class="text-slate-500 text-sm mt-1">กรอกชื่อ-นามสกุลของนักเรียนก่อนเริ่มสุ่มการ์ด</p>
+            </div>
+
+            <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">ชื่อจริง <span class="text-rose-500">*</span></label>
+                    <input type="text" id="student-firstname" required placeholder="เช่น เด็กชายรักเรียน" class="w-full px-4 py-3 rounded-xl border-2 border-sky-200 focus:border-sky-500 focus:outline-none text-base bg-sky-50/50">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">นามสกุล <span class="text-rose-500">*</span></label>
+                    <input type="text" id="student-lastname" required placeholder="เช่น ขยันหมั่นเพียร" class="w-full px-4 py-3 rounded-xl border-2 border-sky-200 focus:border-sky-500 focus:outline-none text-base bg-sky-50/50">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">ชั้นเรียน / เลขที่</label>
+                    <input type="text" id="student-class" placeholder="เช่น ป.2/1 เลขที่ 5 (ถ้ามี)" class="w-full px-4 py-3 rounded-xl border-2 border-sky-200 focus:border-sky-500 focus:outline-none text-base bg-sky-50/50">
+                </div>
+
+                <div class="pt-2 flex gap-3">
+                    <button type="button" onclick="showScreen('screen-home')" class="btn-game px-4 py-3.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl">
+                        กลับ
+                    </button>
+                    <button type="submit" class="btn-game flex-1 py-3.5 bg-gradient-to-r from-sky-400 to-indigo-500 hover:from-sky-500 hover:to-indigo-600 text-white font-cute text-xl font-bold rounded-xl">
+                        ไปสุ่มการ์ดกันเลย! 🃏
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- หน้า 3: หน้าสุ่มการ์ดสูตรแซนด์วิช (Card Gacha - สุ่ม 1 ใบ) -->
+    <!-- ========================================== -->
+    <section id="screen-card-draw" class="hidden flex-1 flex flex-col items-center justify-center p-4">
+        <div class="max-w-xl w-full bg-white/90 backdrop-blur-md rounded-3xl p-6 sm:p-8 shadow-2xl border-4 border-purple-300 text-center">
+            <div class="mb-4">
+                <span class="inline-block bg-purple-100 text-purple-700 px-4 py-1 rounded-full text-sm font-bold mb-2">
+                    สวัสดีเชฟ <span id="display-student-name"></span> 👋
+                </span>
+                <h2 class="font-cute text-2xl sm:text-3xl font-bold text-purple-600" id="card-stage-title">
+                    กดปุ่มเพื่อสุ่มการ์ดสูตรแซนด์วิช!
+                </h2>
+                <p class="text-slate-600 text-sm sm:text-base mt-1" id="card-stage-subtitle">
+                    สุ่มได้สูตรไหน เตรียมตัวทำแซนด์วิช <span class="font-bold text-rose-500 underline">5 ชั้น</span> ตามการ์ดได้เลย!
+                </p>
+            </div>
+
+            <!-- พื้นที่แสดงการ์ด 1 ใบตรงกลาง -->
+            <div id="cards-container" class="flex justify-center my-6">
+                <!-- การ์ด 1 ใบจะถูกสร้างด้วย JavaScript -->
+            </div>
+
+            <!-- ปุ่มกดสุ่มหมุนการ์ด -->
+            <div id="spin-controls" class="mt-4">
+                <button id="btn-spin-cards" onclick="spinCards()" class="btn-game px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-cute text-xl sm:text-2xl font-bold rounded-2xl inline-flex items-center gap-2">
+                    <span>🎲</span> กดสุ่มหมุนการ์ด!
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- หน้า 4: หน้าเล่นเกมประกอบแซนด์วิช (Gameplay) -->
+    <!-- ========================================== -->
+    <section id="screen-game" class="hidden flex-1 flex flex-col justify-between p-2 sm:p-4 max-w-5xl mx-auto w-full">
+        
+        <!-- ส่วนบนสุด: ปุ่มดูการ์ด (มุมซ้ายบน) + นาฬิกาจับเวลา (ตรงกลาง) -->
+        <div class="flex items-center justify-between gap-2 mb-2 pr-24 sm:pr-32">
+            <!-- มุมซ้ายบน: ปุ่มกดเพื่อดูการ์ดอีกครั้ง -->
+            <button onclick="openCardPeekModal()" class="btn-game bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold px-3 sm:px-4 py-2.5 rounded-2xl flex items-center gap-2 border-2 border-amber-600 text-sm sm:text-base shadow-md">
+                <span class="text-xl">🃏</span>
+                <span>ดูการ์ดสูตร</span>
+            </button>
+
+            <!-- นาฬิกาบอกเวลา -->
+            <div class="bg-white/95 px-4 py-2 rounded-2xl shadow-md border-2 border-sky-300 flex items-center gap-2">
+                <span class="text-xl animate-pulse">⏱️</span>
+                <div class="text-left">
+                    <div class="text-[10px] text-slate-400 font-bold leading-none">เวลาที่ใช้</div>
+                    <div id="game-timer" class="font-mono text-lg sm:text-xl font-bold text-sky-600 leading-tight">00:00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- แถบด้านบน: องค์ประกอบต่างๆ ของแซนด์วิช (ครบทุกอย่างที่มีในการ์ดทุกใบ) -->
+        <div class="bg-white/90 backdrop-blur-md rounded-3xl p-3 sm:p-4 shadow-lg border-4 border-orange-200 mb-3">
+            <div class="flex items-center justify-between mb-2 px-1">
+                <span class="text-xs sm:text-sm font-bold text-orange-700 flex items-center gap-1">
+                    <span>🧺</span> วัตถุดิบทั้งหมด (ลากลงจาน หรือ คลิกเพื่อวางทีละชั้น)
+                </span>
+                <span class="text-xs font-semibold bg-orange-100 text-orange-700 px-2.5 py-0.5 rounded-full">
+                    ชั้นที่วางแล้ว: <span id="current-layer-count" class="font-bold text-base">0</span> / <span id="target-layer-count">5</span>
+                </span>
+            </div>
+            
+            <!-- รายการวัตถุดิบ -->
+            <div id="ingredients-palette" class="grid grid-cols-4 sm:grid-cols-8 gap-2 sm:gap-3">
+                <!-- สร้างจาก JS -->
+            </div>
+        </div>
+
+        <!-- พื้นที่ตรงกลาง: โต๊ะประกอบแซนด์วิช (Drop Zone) -->
+        <div class="flex-1 flex flex-col items-center justify-center relative my-2">
+            <!-- จานวางแซนด์วิช (รองรับ Drag & Drop) -->
+            <div id="sandwich-workspace" 
+                 ondragover="handleDragOver(event)" 
+                 ondragleave="handleDragLeave(event)" 
+                 ondrop="handleDrop(event)"
+                 class="w-full max-w-md h-64 sm:h-72 bg-white/75 rounded-3xl border-4 border-dashed border-amber-400 flex flex-col items-center justify-end p-4 relative transition-all duration-200">
+                
+                <!-- ข้อความเมื่อจานยังว่าง -->
+                <div id="workspace-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 pointer-events-none">
+                    <span class="text-4xl mb-1 opacity-60">🍽️</span>
+                    <p class="font-cute text-base sm:text-lg">ลากวัตถุดิบมาวางตรงนี้เลย!</p>
+                </div>
+
+                <!-- กองแซนด์วิชที่นักเรียนประกอบ (เรียงจากล่างขึ้นบนด้วย flex-col-reverse) -->
+                <div id="sandwich-stack" class="w-full flex flex-col-reverse items-center justify-start z-10 mb-3 space-y-reverse -space-y-2">
+                    <!-- ชั้นแซนด์วิชจะมาค้างอยู่ตรงนี้ -->
+                </div>
+
+                <!-- ตัวจานรองด้านล่าง -->
+                <div class="w-64 sm:w-80 h-6 bg-gradient-to-r from-slate-200 via-white to-slate-200 rounded-full border-2 border-slate-300 plate-shadow z-0"></div>
+            </div>
+        </div>
+
+        <!-- แถบปุ่มควบคุมด้านล่าง -->
+        <div class="flex items-center justify-center gap-3 sm:gap-4 mt-2 pb-2">
+            <button onclick="undoLastLayer()" class="btn-game bg-amber-100 hover:bg-amber-200 text-amber-800 border-2 border-amber-300 font-bold px-4 py-3 rounded-2xl flex items-center gap-1.5 text-sm sm:text-base">
+                <span>↩️</span> เอาชั้นบนออก
+            </button>
+            <button onclick="clearSandwich()" class="btn-game bg-rose-100 hover:bg-rose-200 text-rose-700 border-2 border-rose-300 font-bold px-4 py-3 rounded-2xl flex items-center gap-1.5 text-sm sm:text-base">
+                <span>🗑️</span> เริ่มใหม่หมด
+            </button>
+            <button onclick="checkSandwich()" class="btn-game bg-gradient-to-r from-emerald-400 to-green-500 hover:from-emerald-500 hover:to-green-600 text-white font-cute font-bold px-6 sm:px-8 py-3 rounded-2xl flex items-center gap-2 text-lg sm:text-xl shadow-lg">
+                <span>✅</span> ส่งแซนด์วิช!
+            </button>
+        </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- หน้า 5: ด่านที่ 2 ผังงานอัลกอริทึม (Flowchart Stage) -->
+    <!-- ========================================== -->
+    <section id="screen-flowchart" class="hidden flex-1 flex flex-col justify-between p-2 sm:p-4 max-w-7xl mx-auto w-full">
+        <!-- แถบหัวข้อด้านบน -->
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3 pr-24 sm:pr-32">
+            <button onclick="showScreen('screen-home')" class="btn-game bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-4 py-2 rounded-2xl flex items-center gap-1.5 text-sm">
+                <span>🏠</span> กลับหน้าหลัก
+            </button>
+            <div class="bg-white/95 px-4 py-2 rounded-2xl shadow-md border-2 border-indigo-300 flex items-center gap-2">
+                <span class="text-xl">🧠</span>
+                <span class="font-cute font-bold text-indigo-700 text-sm sm:text-base">ด่านที่ 2: เรียงลำดับอัลกอริทึมผังงาน (Flowchart)</span>
+            </div>
+        </div>
+
+        <!-- พื้นที่ทำงานหลักแบ่ง 3 ส่วน: ซ้าย (สัญลักษณ์ผังงาน) | กลาง (ช่องเรียงลำดับ) | ขวา (ข้อมูลวัตถุดิบแซนด์วิช) -->
+        <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-stretch">
+            
+            <!-- ด้านซ้าย (4 คอลัมน์): ภาพสัญลักษณ์ผังงานและองค์ประกอบต่างๆ -->
+            <div class="lg:col-span-4 bg-white/95 backdrop-blur-md rounded-3xl p-4 shadow-xl border-4 border-indigo-300 flex flex-col">
+                <h3 class="font-cute text-lg font-bold text-indigo-700 mb-1 flex items-center gap-1.5">
+                    <span>🧩</span> สัญลักษณ์ผังงาน (Flowchart)
+                </h3>
+                <p class="text-xs text-slate-500 mb-3">ลากหรือคลิกบล็อกด้านล่าง เพื่อนำไปเรียงในช่องตรงกลาง</p>
+
+                <!-- คำอธิบายสัญลักษณ์มาตรฐาน -->
+                <div class="bg-indigo-50/80 rounded-2xl p-2.5 border border-indigo-200 mb-3 text-xs space-y-1.5">
+                    <div class="flex items-center gap-2">
+                        <span class="inline-block w-14 py-0.5 text-center bg-rose-400 text-white font-bold rounded-full text-[10px]">แคปซูล</span>
+                        <span class="text-slate-700"><b>จุดเริ่มต้น / สิ้นสุด</b> (Terminator)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="inline-block w-14 py-0.5 text-center bg-sky-500 text-white font-bold rounded-md text-[10px]">สี่เหลี่ยม</span>
+                        <span class="text-slate-700"><b>กระบวนการ / ขั้นตอนทำ</b> (Process)</span>
+                    </div>
+                </div>
+
+                <!-- รายการบล็อกผังงานให้เลือก -->
+                <div id="flowchart-blocks-palette" class="flex-1 overflow-y-auto space-y-2.5 pr-1">
+                    <!-- สร้างจาก JS -->
+                </div>
+            </div>
+
+            <!-- ตรงกลาง (5 คอลัมน์): ช่องเพื่อเรียงลำดับโฟลว์ชาร์ต -->
+            <div class="lg:col-span-5 bg-white/90 backdrop-blur-md rounded-3xl p-4 shadow-xl border-4 border-purple-300 flex flex-col">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-cute text-lg font-bold text-purple-700 flex items-center gap-1.5">
+                        <span>⬇️</span> ช่องเรียงลำดับผังงาน
+                    </h3>
+                    <span class="text-xs font-bold bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
+                        วางแล้ว <span id="flow-step-count">0</span> / 7 ขั้นตอน
+                    </span>
+                </div>
+
+                <!-- พื้นที่วางบล็อกผังงาน (Drop Zone) -->
+                <div id="flowchart-workspace"
+                     ondragover="handleFlowDragOver(event)"
+                     ondragleave="handleFlowDragLeave(event)"
+                     ondrop="handleFlowDrop(event)"
+                     class="flex-1 min-h-[340px] max-h-[52vh] overflow-y-auto bg-purple-50/60 rounded-2xl border-3 border-dashed border-purple-400 p-3 flex flex-col items-center justify-start relative transition-all">
+                    
+                    <div id="flowchart-placeholder" class="my-auto text-center text-slate-400 pointer-events-none p-4">
+                        <span class="text-4xl block mb-2 opacity-60">📋</span>
+                        <p class="font-cute text-base">ลากหรือคลิกสัญลักษณ์ผังงานจากด้านซ้าย<br>มาเรียงจากบนลงล่างตรงนี้!</p>
+                    </div>
+
+                    <div id="flowchart-sequence-list" class="w-full flex flex-col items-center">
+                        <!-- บล็อกที่เรียงแล้วจะแสดงตรงนี้พร้อมลูกศรเชื่อม -->
+                    </div>
+                </div>
+
+                <!-- ปุ่มควบคุมตรงกลาง -->
+                <div class="flex items-center justify-center gap-2 mt-3 pt-1">
+                    <button onclick="undoFlowStep()" class="btn-game bg-amber-100 hover:bg-amber-200 text-amber-800 border-2 border-amber-300 font-bold px-3 py-2.5 rounded-xl text-xs sm:text-sm">
+                        ↩️ ลบอันล่างสุด
+                    </button>
+                    <button onclick="clearFlowchart()" class="btn-game bg-rose-100 hover:bg-rose-200 text-rose-700 border-2 border-rose-300 font-bold px-3 py-2.5 rounded-xl text-xs sm:text-sm">
+                        🗑️ ล้างผังงาน
+                    </button>
+                    <button onclick="checkFlowchart()" class="btn-game flex-1 bg-gradient-to-r from-emerald-400 to-green-500 hover:from-emerald-500 hover:to-green-600 text-white font-cute font-bold px-4 py-2.5 rounded-xl text-base sm:text-lg shadow-md">
+                        ✅ ตรวจผังงาน!
+                    </button>
+                </div>
+            </div>
+
+            <!-- ด้านขวา (3 คอลัมน์): ข้อมูลวัตถุดิบแซนด์วิชต่างๆ สำหรับอ้างอิง -->
+            <div class="lg:col-span-3 bg-white/95 backdrop-blur-md rounded-3xl p-4 shadow-xl border-4 border-amber-300 flex flex-col">
+                <h3 class="font-cute text-lg font-bold text-amber-700 mb-1 flex items-center gap-1.5">
+                    <span>🥪</span> ข้อมูลวัตถุดิบแซนด์วิช
+                </h3>
+                <p class="text-xs text-slate-500 mb-3">ดูส่วนประกอบในสูตรเพื่อเขียนผังงาน</p>
+
+                <!-- การ์ดสูตรอ้างอิงของนักเรียน -->
+                <div id="flowchart-recipe-ref" class="bg-amber-50 rounded-2xl p-3 border-2 border-amber-200 mb-3">
+                    <!-- เติมข้อมูลสูตรของนักเรียนจาก JS -->
+                </div>
+
+                <!-- คลังวัตถุดิบประกอบความรู้ -->
+                <div class="text-xs font-bold text-slate-600 mb-1.5">คลังวัตถุดิบทั้งหมด:</div>
+                <div id="flowchart-ingredients-ref" class="grid grid-cols-2 gap-1.5 overflow-y-auto">
+                    <!-- เติมวัตถุดิบทั้งหมดจาก JS -->
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- หน้าต่าง Modal: แอบดูการ์ดสูตรอาหารอีกครั้ง -->
+    <!-- ========================================== -->
+    <div id="modal-peek-card" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-sm w-full border-4 border-amber-400 shadow-2xl text-center transform transition-all">
+            <h3 class="font-cute text-2xl font-bold text-amber-600 mb-1">สูตรแซนด์วิชของคุณ</h3>
+            <p class="text-xs text-slate-500 mb-4">ส่วนประกอบทั้งหมดที่ใช้ในสูตรนี้</p>
+            
+            <div id="peek-card-content" class="bg-amber-50 rounded-2xl p-4 border-2 border-amber-200 mb-5">
+                <!-- รายละเอียดการ์ดที่เลือก -->
+            </div>
+
+            <button onclick="closeCardPeekModal()" class="btn-game w-full py-3 bg-amber-400 hover:bg-amber-500 text-amber-950 font-cute font-bold text-lg rounded-xl">
+                เข้าใจแล้ว กลับไปทำต่อ! 👍
+            </button>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- หน้าต่าง Modal: แจ้งเตือนผลลัพธ์ (ถูก / ผิด) -->
+    <!-- ========================================== -->
+    <div id="modal-result" class="hidden fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div id="result-box" class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full border-4 shadow-2xl text-center">
+            <div id="result-emoji" class="text-6xl sm:text-7xl mb-4">🎉</div>
+            <h3 id="result-title" class="font-cute text-2xl sm:text-3xl font-bold mb-2"></h3>
+            <p id="result-message" class="text-slate-600 text-base sm:text-lg mb-4"></p>
+            <div id="result-explanation" class="hidden text-left bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-4 mb-5 text-xs sm:text-sm text-slate-700 space-y-1.5"></div>
+            <div id="result-time-badge" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl py-2 px-4 mb-6 font-bold"></div>
+            
+            <button id="result-action-btn" class="btn-game w-full py-3.5 text-white font-cute font-bold text-xl rounded-2xl">
+                ตกลง
+            </button>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- หน้าต่าง Modal: แอดมินหลังบ้านสำหรับคุณครู -->
+    <!-- ========================================== -->
+    <div id="modal-admin" class="hidden fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6">
+        <div class="bg-white rounded-3xl p-5 sm:p-8 max-w-4xl w-full max-h-[90vh] flex flex-col border-4 border-slate-700 shadow-2xl">
+            <div class="flex items-center justify-between border-b pb-4 mb-4">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">👩‍🏫</span>
+                    <div>
+                        <h3 class="font-cute text-xl sm:text-2xl font-bold text-slate-800">ระบบหลังบ้านคุณครู (ตรวจคะแนนนักเรียน)</h3>
+                        <p class="text-xs sm:text-sm text-slate-500">บันทึกสถิติการทำแซนด์วิช เวลาที่ใช้ และส่งข้อมูลเข้า Google Sheets อัตโนมัติ</p>
+                    </div>
+                </div>
+                <button onclick="closeAdminModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 w-10 h-10 rounded-full font-bold text-xl">✕</button>
+            </div>
+
+            <!-- ส่วนรหัสผ่านแอดมิน -->
+            <div id="admin-login-section" class="py-8 text-center max-w-sm mx-auto">
+                <p class="text-slate-600 mb-3 font-medium">กรุณากรอกรหัสผ่านคุณครู (รหัสคือ <span class="font-bold text-indigo-600">แหนะ</span>)</p>
+                <div class="flex gap-2">
+                    <input type="password" id="admin-password" placeholder="ไม่บอกอย่าแอบเข้า" class="flex-1 px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:border-indigo-500 focus:outline-none text-center text-lg">
+                    <button onclick="verifyAdmin()" class="btn-game bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold">เข้าสู่ระบบ</button>
+                </div>
+                <p id="admin-error" class="text-rose-500 text-sm mt-2 hidden">รหัสผ่านไม่ถูกต้อง ลองใหม่อีกครั้ง</p>
+            </div>
+
+            <!-- ส่วนแสดงตารางคะแนน (แสดงเมื่อใส่รหัสถูก) -->
+            <div id="admin-dashboard-section" class="hidden flex-1 flex flex-col overflow-hidden">
+                <!-- สรุปภาพรวม -->
+                <div class="grid grid-cols-3 gap-3 mb-4">
+                    <div class="bg-sky-50 p-3 rounded-2xl border border-sky-200 text-center">
+                        <div class="text-xs text-sky-600 font-bold">นักเรียนที่เล่นทั้งหมด</div>
+                        <div id="stat-total-students" class="text-2xl font-bold text-sky-800">0 คน</div>
+                    </div>
+                    <div class="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 text-center">
+                        <div class="text-xs text-emerald-600 font-bold">ทำสำเร็จ</div>
+                        <div id="stat-passed-students" class="text-2xl font-bold text-emerald-800">0 คน</div>
+                    </div>
+                    <div class="bg-amber-50 p-3 rounded-2xl border border-amber-200 text-center">
+                        <div class="text-xs text-amber-600 font-bold">เวลาเฉลี่ย</div>
+                        <div id="stat-avg-time" class="text-2xl font-bold text-amber-800">00:00</div>
+                    </div>
+                </div>
+
+                <!-- ส่วนเปลี่ยนภาพพื้นหลังสำหรับคุณครู -->
+                <div class="bg-indigo-50 p-3.5 rounded-2xl border border-indigo-200 mb-4 space-y-2.5">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">🖼️</span>
+                            <div>
+                                <div class="text-xs sm:text-sm font-bold text-indigo-900">เปลี่ยนภาพพื้นหลังเว็บไซต์</div>
+                                <div class="text-[11px] text-indigo-600">เลือกรูปจากเครื่อง หรือวางลิงก์รูปภาพโดยตรง (ลงท้ายด้วย .jpg / .png)</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="btn-game bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
+                                📁 เลือกรูปจากเครื่อง
+                                <input type="file" accept="image/*" onchange="uploadCustomBg(event)" class="hidden">
+                            </label>
+                            <button onclick="resetCustomBg()" class="bg-white hover:bg-slate-100 text-slate-600 border border-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold">
+                                รีเซ็ตพื้นหลัง
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ช่องวางลิงก์ URL รูปภาพ -->
+                    <div class="flex gap-2">
+                        <input type="url" id="custom-bg-url-input" placeholder="วางลิงก์รูปภาพที่นี่ (เช่น https://i.pinimg.com/originals/...jpg)" class="flex-1 px-3 py-1.5 rounded-xl border border-indigo-200 text-xs focus:border-indigo-500 focus:outline-none bg-white">
+                        <button onclick="applyBgFromUrl()" class="btn-game bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap">
+                            🔗 ใช้ลิงก์นี้
+                        </button>
+                    </div>
+                </div>
+                <div id="bg-save-status" class="hidden text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl mb-3 text-center"></div>
+
+                <!-- ตารางรายชื่อ -->
+                <div class="flex-1 overflow-y-auto border rounded-2xl">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-slate-100 text-slate-700 text-xs sm:text-sm sticky top-0">
+                            <tr>
+                                <th class="p-3 border-b">ลำดับ</th>
+                                <th class="p-3 border-b">ชื่อ - นามสกุล</th>
+                                <th class="p-3 border-b">ชั้นเรียน</th>
+                                <th class="p-3 border-b">การ์ดที่เลือก</th>
+                                <th class="p-3 border-b text-center">ลองทำ (ครั้ง)</th>
+                                <th class="p-3 border-b text-center">เวลาที่ใช้</th>
+                                <th class="p-3 border-b text-center">สถานะ/คะแนน</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table-body" class="text-xs sm:text-sm divide-y">
+                            <!-- ข้อมูลจาก LocalStorage -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- ปุ่มจัดการข้อมูล -->
+                <div class="flex justify-between items-center mt-4 pt-2">
+                    <button onclick="clearAllRecords()" class="text-rose-600 hover:text-rose-800 text-xs sm:text-sm font-bold flex items-center gap-1">
+                        <span>🗑️</span> ล้างข้อมูลคะแนนทั้งหมด
+                    </button>
+                    <button onclick="exportCSV()" class="btn-game bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                        <span>📥</span> ดาวน์โหลดไฟล์ Excel (CSV)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // 0. การเชื่อมต่อ Google Sheets (บันทึกคะแนนออนไลน์เข้าไฟล์ของคุณครูอัตโนมัติ)
+        // =========================================================================
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzGrzF6sO-MHlfZp_vXIHdABYPZtzWSwGpWuMpsxZKfyVhr0juWNudrLZgGBD_St7UoYw/exec";
+
+        function sendScoreToGoogleSheets(studentName, classroom, recipeName, s1Time, s2Time, statusText) {
+            if (!GOOGLE_SCRIPT_URL) return;
+
+            const payload = {
+                name: studentName,
+                classroom: classroom,
+                recipe: recipeName,
+                stage1Time: s1Time,
+                stage2Time: s2Time,
+                status: statusText
+            };
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(() => console.log("ส่งคะแนนเข้า Google Sheets สำเร็จ"))
+            .catch(err => console.error("ส่งคะแนนไม่สำเร็จ:", err));
+        }
+
+        // =========================================================================
+        // 1. ข้อมูลองค์ประกอบทั้งหมดของแซนด์วิช (ครบทุกชนิดที่มีในการ์ดทุกใบ)
+        // =========================================================================
+        const INGREDIENTS = [
+            { id: 'bread_bottom', name: 'ขนมปังล่าง', emoji: '🍞', color: 'bg-amber-100 border-amber-400', visualClass: 'w-52 sm:w-64 h-7 bg-amber-300 border-b-4 border-amber-600 rounded-b-xl rounded-t-sm' },
+            { id: 'lettuce', name: 'ผักกาดหอม', emoji: '🥬', color: 'bg-green-100 border-green-400', visualClass: 'w-56 sm:w-68 h-4 bg-green-400 border-b-2 border-green-600 rounded-full' },
+            { id: 'tomato', name: 'มะเขือเทศ', emoji: '🍅', color: 'bg-red-100 border-red-400', visualClass: 'w-48 sm:w-60 h-4 bg-red-500 border-b-2 border-red-700 rounded-full' },
+            { id: 'cheese', name: 'ชีสแผ่น', emoji: '🧀', color: 'bg-yellow-100 border-yellow-400', visualClass: 'w-52 sm:w-64 h-3.5 bg-yellow-300 border-b-2 border-yellow-500 rounded-sm' },
+            { id: 'ham', name: 'แฮมหมู', emoji: '🥓', color: 'bg-rose-100 border-rose-400', visualClass: 'w-50 sm:w-62 h-4 bg-rose-400 border-b-2 border-rose-600 rounded-md' },
+            { id: 'egg', name: 'ไข่ดาว', emoji: '🍳', color: 'bg-orange-100 border-orange-300', visualClass: 'w-48 sm:w-60 h-4 bg-white border-2 border-amber-300 rounded-full flex items-center justify-center after:content-[""] after:w-8 after:h-3 after:bg-amber-400 after:rounded-full' },
+            { id: 'tuna', name: 'ทูน่าสเปรด', emoji: '🐟', color: 'bg-sky-100 border-sky-400', visualClass: 'w-48 sm:w-60 h-4 bg-sky-200 border-b-2 border-sky-400 rounded-full' },
+            { id: 'bread_top', name: 'ขนมปังบน', emoji: '🥪', color: 'bg-amber-200 border-amber-500', visualClass: 'w-52 sm:w-64 h-8 bg-amber-300 border-t-4 border-amber-600 rounded-t-2xl rounded-b-sm' }
+        ];
+
+        // =========================================================================
+        // 2. คลังการ์ดสูตรแซนด์วิช (เงื่อนไข: ทุกแบบมีจำนวน 5 ชั้นเท่ากันทั้งหมด!)
+        // =========================================================================
+        const SANDWICH_CARDS = [
+            {
+                id: 'classic_ham_cheese',
+                title: 'แฮมชีสคลาสสิก',
+                badgeColor: 'bg-rose-100 text-rose-700',
+                layers: ['bread_bottom', 'lettuce', 'ham', 'cheese', 'bread_top']
+            },
+            {
+                id: 'sunny_egg_delight',
+                title: 'ไข่ดาวแสนอร่อย',
+                badgeColor: 'bg-amber-100 text-amber-700',
+                layers: ['bread_bottom', 'tomato', 'egg', 'lettuce', 'bread_top']
+            },
+            {
+                id: 'tuna_fresh',
+                title: 'ทูน่าผักสด',
+                badgeColor: 'bg-sky-100 text-sky-700',
+                layers: ['bread_bottom', 'tuna', 'tomato', 'lettuce', 'bread_top']
+            },
+            {
+                id: 'double_protein',
+                title: 'เชฟพิเศษแฮมไข่',
+                badgeColor: 'bg-purple-100 text-purple-700',
+                layers: ['bread_bottom', 'ham', 'egg', 'cheese', 'bread_top']
+            },
+            {
+                id: 'veggie_cheese_lover',
+                title: 'ชีสเลิฟเวอร์ผักกรอบ',
+                badgeColor: 'bg-emerald-100 text-emerald-700',
+                layers: ['bread_bottom', 'cheese', 'lettuce', 'tomato', 'bread_top']
+            }
+        ];
+
+        // =========================================================================
+        // 3. ตัวแปรสถานะของเกม (Game State)
+        // =========================================================================
+        let currentStudent = { firstName: '', lastName: '', className: '' };
+        let displayedCards = [];
+        let selectedCard = null;
+        let isCardSpun = false;
+        let currentStack = [];
+        let timerInterval = null;
+        let secondsElapsed = 0;
+        let stage1FinalTime = '00:00';
+        let flowchartStartTime = 0;
+        let attemptCount = 0;
+        let isStage1Completed = false;
+        let completedRecipeCard = null;
+        let flowchartUserSequence = [];
+        let flowchartBlocksPool = [];
+
+        // =========================================================================
+        // 4. ระบบเสียงเอฟเฟกต์และเพลงประกอบ (Tone.js)
+        // =========================================================================
+        let isMusicPlaying = false;
+        let bgmLoop = null;
+        let sfxSynth = null;
+        let bgmSynth = null;
+
+        async function initAudio() {
+            if (typeof Tone === 'undefined') return;
+            if (Tone.context.state !== 'running') {
+                await Tone.start();
+            }
+            if (!sfxSynth) {
+                sfxSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: 'triangle' },
+                    envelope: { attack: 0.01, decay: 0.15, sustain: 0.05, release: 0.2 }
+                }).toDestination();
+                sfxSynth.volume.value = -6;
+            }
+            if (!bgmSynth) {
+                bgmSynth = new Tone.Synth({
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.05, decay: 0.2, sustain: 0.2, release: 0.4 }
+                }).toDestination();
+                bgmSynth.volume.value = -16;
+
+                const melody = ['C4', 'E4', 'G4', 'A4', 'G4', 'E4', 'D4', 'G4', 'E4', 'C4', 'D4', 'E4', 'C4', null];
+                let noteIndex = 0;
+                bgmLoop = new Tone.Loop((time) => {
+                    const note = melody[noteIndex % melody.length];
+                    if (note && isMusicPlaying) {
+                        bgmSynth.triggerAttackRelease(note, '8n', time);
+                    }
+                    noteIndex++;
+                }, '4n');
+                Tone.Transport.bpm.value = 115;
+            }
+        }
+
+        async function toggleMusic() {
+            await initAudio();
+            const icon = document.getElementById('music-icon');
+            const text = document.getElementById('music-text');
+
+            if (!isMusicPlaying) {
+                isMusicPlaying = true;
+                if (Tone.Transport.state !== 'started') {
+                    Tone.Transport.start();
+                    bgmLoop.start(0);
+                }
+                icon.textContent = '🔊';
+                text.textContent = 'ปิดเพลง';
+                playSFX('click');
+            } else {
+                isMusicPlaying = false;
+                icon.textContent = '🔇';
+                text.textContent = 'เปิดเพลง';
+            }
+        }
+
+        async function playSFX(type) {
+            try {
+                await initAudio();
+                if (!sfxSynth) return;
+                const now = Tone.now();
+                switch (type) {
+                    case 'click':
+                        sfxSynth.triggerAttackRelease('C5', '16n', now);
+                        break;
+                    case 'spin':
+                        sfxSynth.triggerAttackRelease(['E5', 'G5'], '32n', now);
+                        break;
+                    case 'flip':
+                        sfxSynth.triggerAttackRelease('G4', '16n', now);
+                        sfxSynth.triggerAttackRelease('C5', '16n', now + 0.08);
+                        break;
+                    case 'drop':
+                        sfxSynth.triggerAttackRelease('F4', '16n', now);
+                        sfxSynth.triggerAttackRelease('A4', '16n', now + 0.05);
+                        break;
+                    case 'remove':
+                        sfxSynth.triggerAttackRelease('E4', '16n', now);
+                        sfxSynth.triggerAttackRelease('C4', '16n', now + 0.06);
+                        break;
+                    case 'error':
+                        sfxSynth.triggerAttackRelease('Eb3', '8n', now);
+                        sfxSynth.triggerAttackRelease('D3', '8n', now + 0.15);
+                        break;
+                    case 'win':
+                        sfxSynth.triggerAttackRelease('C5', '8n', now);
+                        sfxSynth.triggerAttackRelease('E5', '8n', now + 0.12);
+                        sfxSynth.triggerAttackRelease('G5', '8n', now + 0.24);
+                        sfxSynth.triggerAttackRelease('C6', '4n', now + 0.36);
+                        break;
+                }
+            } catch (e) {
+                // ป้องกัน error กรณีเบราว์เซอร์บล็อกเสียงก่อนคลิก
+            }
+        }
+
+        // =========================================================================
+        // 5. ระบบเปลี่ยนหน้าจอ (Screen Navigation) & ลงทะเบียน
+        // =========================================================================
+        function showScreen(screenId) {
+            const screens = ['screen-home', 'screen-register', 'screen-card-draw', 'screen-game', 'screen-flowchart'];
+            screens.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            const target = document.getElementById(screenId);
+            if (target) target.classList.remove('hidden');
+
+            const adminBtn = document.getElementById('admin-entry-btn');
+            if (adminBtn) {
+                if (screenId === 'screen-home') {
+                    adminBtn.classList.remove('hidden');
+                } else {
+                    adminBtn.classList.add('hidden');
+                }
+            }
+        }
+
+        function goToRegister() {
+            playSFX('click');
+            if (!isMusicPlaying) {
+                toggleMusic();
+            }
+            showScreen('screen-register');
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            playSFX('click');
+            const firstName = document.getElementById('student-firstname').value.trim();
+            const lastName = document.getElementById('student-lastname').value.trim();
+            const className = document.getElementById('student-class').value.trim() || '-';
+
+            if (!firstName || !lastName) return;
+
+            currentStudent = { firstName, lastName, className };
+            document.getElementById('display-student-name').textContent = `${firstName} ${lastName}`;
+
+            setupCardDrawScreen();
+            showScreen('screen-card-draw');
+        }
+
+        // =========================================================================
+        // 6. ระบบสุ่มหมุนการ์ด (แสดงแค่ 1 ใบ ไม่ต้องเลือก)
+        // =========================================================================
+        function setupCardDrawScreen() {
+            isCardSpun = false;
+            selectedCard = null;
+            document.getElementById('card-stage-title').textContent = 'กดปุ่มเพื่อสุ่มการ์ดสูตรแซนด์วิช!';
+            document.getElementById('spin-controls').classList.remove('hidden');
+
+            const randomIndex = Math.floor(Math.random() * SANDWICH_CARDS.length);
+            const drawnCard = SANDWICH_CARDS[randomIndex];
+            displayedCards = [drawnCard];
+
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
+
+            const cardWrapper = document.createElement('div');
+            cardWrapper.className = 'perspective-1000 w-64 sm:w-72 h-80 sm:h-88 cursor-pointer';
+            cardWrapper.id = 'card-slot-0';
+            cardWrapper.onclick = () => selectSandwichCard(0);
+
+            cardWrapper.innerHTML = `
+                <div id="card-inner-0" class="card-inner relative w-full h-full rounded-3xl shadow-xl">
+                    <!-- ด้านหลังการ์ด (แสดงก่อนสุ่มหมุน) -->
+                    <div class="card-front absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-3xl border-4 border-white flex flex-col items-center justify-center p-4 text-white">
+                        <span class="text-7xl mb-3">❓</span>
+                        <span class="font-cute text-2xl font-bold">การ์ดสูตรลับของคุณ</span>
+                        <span class="text-xs bg-white/20 px-3 py-1 rounded-full mt-2">สูตรลับ 5 ชั้น</span>
+                    </div>
+
+                    <!-- ด้านหน้าการ์ด (แสดงสูตรแซนด์วิชหลังจากหมุนเสร็จ) -->
+                    <div class="card-back absolute inset-0 bg-white rounded-3xl border-4 border-amber-400 p-4 flex flex-col justify-between shadow-inner">
+                        <div>
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-full ${drawnCard.badgeColor}">
+                                ส่วนประกอบในสูตร (5 ชั้น)
+                            </span>
+                            <h3 class="font-cute text-xl font-bold text-slate-800 mt-1.5">${drawnCard.title}</h3>
+                        </div>
+
+                        <!-- แสดงรายการวัตถุดิบที่มีในสูตร (ไม่บอกลำดับชั้นก่อน-หลัง) -->
+                        <div class="bg-amber-50/80 rounded-2xl p-2.5 border border-amber-200 space-y-1 my-1">
+                            ${[...drawnCard.layers].sort().map((ingId) => {
+                                const ing = INGREDIENTS.find(i => i.id === ingId);
+                                return `
+                                    <div class="flex items-center justify-center gap-2 text-xs bg-white px-2.5 py-1 rounded-lg shadow-sm">
+                                        <span class="font-medium text-slate-700">${ing.emoji} ${ing.name}</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+
+                        <div class="bg-emerald-500 hover:bg-emerald-600 text-white font-cute font-bold py-2.5 rounded-xl text-base shadow animate-pulse">
+                            ▶️ คลิกที่นี่เพื่อเริ่มทำเลย!
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(cardWrapper);
+        }
+
+        function spinCards() {
+            if (isCardSpun) return;
+            const btn = document.getElementById('btn-spin-cards');
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+
+            let spinCount = 0;
+            const slot = document.getElementById('card-slot-0');
+            const spinInterval = setInterval(() => {
+                playSFX('spin');
+                slot.classList.toggle('shuffling');
+                spinCount++;
+
+                if (spinCount >= 10) {
+                    clearInterval(spinInterval);
+                    slot.classList.remove('shuffling');
+                    
+                    setTimeout(() => {
+                        playSFX('flip');
+                        document.getElementById('card-inner-0').classList.add('card-flipped');
+                    }, 150);
+
+                    isCardSpun = true;
+                    document.getElementById('spin-controls').classList.add('hidden');
+                    document.getElementById('card-stage-title').textContent = 'เย้! ได้สูตรแล้ว คลิกที่การ์ดเพื่อเริ่มทำได้เลย!';
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50');
+                }
+            }, 150);
+        }
+
+        function selectSandwichCard(index) {
+            if (!isCardSpun) {
+                playSFX('error');
+                const btn = document.getElementById('btn-spin-cards');
+                btn.classList.add('animate-shake');
+                setTimeout(() => btn.classList.remove('animate-shake'), 500);
+                return;
+            }
+
+            playSFX('flip');
+            selectedCard = displayedCards[0];
+            startGame();
+        }
+
+        // =========================================================================
+        // 7. ระบบหน้าเล่นเกม (ประกอบแซนด์วิช, Drag & Drop, จับเวลา)
+        // =========================================================================
+        function startGame() {
+            currentStack = [];
+            attemptCount = 0;
+            secondsElapsed = 0;
+
+            const palette = document.getElementById('ingredients-palette');
+            palette.innerHTML = '';
+
+            INGREDIENTS.forEach(ing => {
+                const item = document.createElement('div');
+                item.draggable = true;
+                item.className = `${ing.color} border-2 rounded-2xl p-2 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md hover:scale-105 transition select-none`;
+                item.innerHTML = `
+                    <span class="text-2xl sm:text-3xl mb-0.5 pointer-events-none">${ing.emoji}</span>
+                    <span class="text-[11px] sm:text-xs font-bold text-slate-700 text-center leading-tight pointer-events-none">${ing.name}</span>
+                `;
+
+                item.ondragstart = (e) => {
+                    e.dataTransfer.setData('text/plain', ing.id);
+                    playSFX('click');
+                };
+
+                item.onclick = () => addIngredientToStack(ing.id);
+
+                palette.appendChild(item);
+            });
+
+            renderSandwichStack();
+            startTimer();
+            showScreen('screen-game');
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            const ws = document.getElementById('sandwich-workspace');
+            ws.classList.add('bg-amber-100/80', 'border-amber-600', 'scale-[1.01]');
+        }
+
+        function handleDragLeave(e) {
+            const ws = document.getElementById('sandwich-workspace');
+            ws.classList.remove('bg-amber-100/80', 'border-amber-600', 'scale-[1.01]');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            handleDragLeave(e);
+            const ingId = e.dataTransfer.getData('text/plain');
+            if (ingId) {
+                addIngredientToStack(ingId);
+            }
+        }
+
+        function addIngredientToStack(ingId) {
+            if (currentStack.length >= selectedCard.layers.length) {
+                playSFX('error');
+                const ws = document.getElementById('sandwich-workspace');
+                ws.classList.add('animate-shake');
+                setTimeout(() => ws.classList.remove('animate-shake'), 400);
+                return;
+            }
+
+            playSFX('drop');
+            currentStack.push(ingId);
+            renderSandwichStack();
+        }
+
+        function undoLastLayer() {
+            if (currentStack.length === 0) return;
+            playSFX('remove');
+            currentStack.pop();
+            renderSandwichStack();
+        }
+
+        function clearSandwich() {
+            if (currentStack.length === 0) return;
+            playSFX('remove');
+            currentStack = [];
+            renderSandwichStack();
+        }
+
+        function renderSandwichStack() {
+            const stackContainer = document.getElementById('sandwich-stack');
+            const placeholder = document.getElementById('workspace-placeholder');
+            const countDisplay = document.getElementById('current-layer-count');
+            const targetDisplay = document.getElementById('target-layer-count');
+
+            countDisplay.textContent = currentStack.length;
+            targetDisplay.textContent = selectedCard.layers.length;
+
+            if (currentStack.length === 0) {
+                placeholder.classList.remove('hidden');
+                stackContainer.innerHTML = '';
+                return;
+            }
+
+            placeholder.classList.add('hidden');
+            stackContainer.innerHTML = '';
+
+            currentStack.forEach((ingId, idx) => {
+                const ing = INGREDIENTS.find(i => i.id === ingId);
+                const layerEl = document.createElement('div');
+                layerEl.style.zIndex = idx + 1;
+                layerEl.className = `${ing.visualClass} shadow-md flex items-center justify-center relative ingredient-dropped`;
+                
+                layerEl.innerHTML = `
+                    <span class="absolute -right-20 sm:-right-24 bg-white/90 text-[10px] sm:text-xs font-bold text-slate-700 px-2 py-0.5 rounded-full shadow border border-slate-200 whitespace-nowrap">
+                        ${idx + 1}. ${ing.emoji} ${ing.name}
+                    </span>
+                `;
+                stackContainer.appendChild(layerEl);
+            });
+        }
+
+        // =========================================================================
+        // 8. ระบบนาฬิกาจับเวลา
+        // =========================================================================
+        function startTimer() {
+            stopTimer();
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function formatTime(totalSeconds) {
+            const mins = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+            const secs = (totalSeconds % 60).toString().padStart(2, '0');
+            return `${mins}:${secs}`;
+        }
+
+        function updateTimerDisplay() {
+            document.getElementById('game-timer').textContent = formatTime(secondsElapsed);
+        }
+
+        // =========================================================================
+        // 9. หน้าต่างแอบดูการ์ดสูตรอาหารระหว่างเล่น (มุมซ้ายบน)
+        // =========================================================================
+        function openCardPeekModal() {
+            playSFX('flip');
+            const content = document.getElementById('peek-card-content');
+            content.innerHTML = `
+                <div class="font-cute text-lg font-bold text-amber-800 mb-2">${selectedCard.title}</div>
+                <div class="text-xs text-slate-500 mb-2">ส่วนประกอบทั้งหมดที่ใช้ในสูตรนี้:</div>
+                <div class="space-y-1.5">
+                    ${[...selectedCard.layers].sort().map((ingId) => {
+                        const ing = INGREDIENTS.find(i => i.id === ingId);
+                        return `
+                            <div class="flex items-center justify-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-amber-200 shadow-sm text-sm">
+                                <span class="font-semibold text-slate-800">${ing.emoji} ${ing.name}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            document.getElementById('modal-peek-card').classList.remove('hidden');
+        }
+
+        function closeCardPeekModal() {
+            playSFX('click');
+            document.getElementById('modal-peek-card').classList.add('hidden');
+        }
+
+        // =========================================================================
+        // 10. ระบบตรวจคำตอบด่านที่ 1 (ถูก -> ฉลองและส่งคะแนนเข้า Google Sheets)
+        // =========================================================================
+        function checkSandwich() {
+            attemptCount++;
+
+            const isCorrect = 
+                currentStack.length === selectedCard.layers.length &&
+                currentStack.every((val, index) => val === selectedCard.layers[index]);
+
+            const modal = document.getElementById('modal-result');
+            const box = document.getElementById('result-box');
+            const emoji = document.getElementById('result-emoji');
+            const title = document.getElementById('result-title');
+            const msg = document.getElementById('result-message');
+            const explanationBox = document.getElementById('result-explanation');
+            const timeBadge = document.getElementById('result-time-badge');
+            const btn = document.getElementById('result-action-btn');
+
+            explanationBox.classList.add('hidden');
+
+            if (isCorrect) {
+                stopTimer();
+                playSFX('win');
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                }
+
+                isStage1Completed = true;
+                completedRecipeCard = selectedCard;
+                stage1FinalTime = formatTime(secondsElapsed);
+
+                // บันทึกลงระบบแอดมินในเครื่อง + ส่งเข้า Google Sheets ของคุณครู
+                saveScoreToAdmin();
+                sendScoreToGoogleSheets(
+                    `${currentStudent.firstName} ${currentStudent.lastName}`,
+                    currentStudent.className,
+                    selectedCard.title,
+                    stage1FinalTime,
+                    "-",
+                    `ผ่านด่าน 1 (ลอง ${attemptCount} ครั้ง)`
+                );
+
+                box.className = 'bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full border-4 border-emerald-400 shadow-2xl text-center';
+                emoji.textContent = '🎉🙌🥪';
+                title.className = 'font-cute text-2xl sm:text-3xl font-bold text-emerald-600 mb-3';
+                title.textContent = 'เย้ เสร็จแล้ว คุณเก่งมาก ชูมือบอกครูได้เลย';
+                msg.textContent = `เชฟ ${currentStudent.firstName} ทำ "${selectedCard.title}" ได้ถูกต้องครบทุกชั้น! (ปลดล็อกเมนูที่ 2: ผังงานที่หน้าหลักแล้ว)`;
+                
+                timeBadge.classList.remove('hidden');
+                timeBadge.textContent = `⏱️ ใช้เวลาทำทั้งหมด ${stage1FinalTime} (ลองทำ ${attemptCount} ครั้ง)`;
+
+                btn.className = 'btn-game w-full py-3.5 bg-gradient-to-r from-emerald-400 to-teal-500 text-white font-cute font-bold text-xl rounded-2xl';
+                btn.textContent = 'กลับไปที่หน้าหลัก 🏠';
+                btn.onclick = () => {
+                    playSFX('click');
+                    modal.classList.add('hidden');
+                    document.getElementById('register-form').reset();
+                    const menu2 = document.getElementById('menu-stage-2');
+                    if (menu2) {
+                        menu2.classList.remove('hidden');
+                        document.getElementById('unlocked-student-name').textContent = `${currentStudent.firstName} ${currentStudent.lastName}`;
+                    }
+                    showScreen('screen-home');
+                };
+
+                modal.classList.remove('hidden');
+            } else {
+                playSFX('error');
+
+                box.className = 'bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full border-4 border-rose-400 shadow-2xl text-center animate-shake';
+                emoji.textContent = '🤔';
+                title.className = 'font-cute text-3xl sm:text-4xl font-bold text-rose-500 mb-2';
+                title.textContent = 'ลองอีกครั้ง';
+                
+                if (currentStack.length < selectedCard.layers.length) {
+                    msg.textContent = `ตอนนี้วางไป ${currentStack.length} ชั้น ยังไม่ครบ 5 ชั้นเลย ลองวางส่วนประกอบให้ครบนะ!`;
+                } else {
+                    msg.textContent = 'ยังไม่ถูกต้อง ลองคิดทบทวนวิธีประกอบแซนด์วิชแล้วจัดเรียงใหม่อีกครั้งนะ!';
+                }
+
+                timeBadge.classList.add('hidden');
+                btn.className = 'btn-game w-full py-3.5 bg-gradient-to-r from-rose-400 to-pink-500 text-white font-cute font-bold text-xl rounded-2xl';
+                btn.textContent = 'ตกลง ลองอีกครั้ง! 💪';
+                btn.onclick = () => {
+                    playSFX('click');
+                    modal.classList.add('hidden');
+                };
+
+                modal.classList.remove('hidden');
+            }
+        }
+
+        // =========================================================================
+        // 10.5 ระบบด่านที่ 2: ผังงานอัลกอริทึม (Flowchart Algorithm)
+        // =========================================================================
+        function goToFlowchartStage() {
+            playSFX('click');
+            const recipe = completedRecipeCard || SANDWICH_CARDS[0];
+            flowchartUserSequence = [];
+            flowchartStartTime = Date.now();
+
+            const correctBlocks = [
+                { id: 'start', type: 'terminator', label: 'เริ่มต้น (Start)', emoji: '🟢' }
+            ];
+
+            recipe.layers.forEach((ingId, idx) => {
+                const ing = INGREDIENTS.find(i => i.id === ingId);
+                correctBlocks.push({
+                    id: `step_${idx}_${ingId}`,
+                    type: 'process',
+                    label: `วาง${ing.name}`,
+                    emoji: ing.emoji
+                });
+            });
+
+            correctBlocks.push({ id: 'end', type: 'terminator', label: 'สิ้นสุด (End)', emoji: '🔴' });
+
+            flowchartBlocksPool = [...correctBlocks].sort(() => Math.random() - 0.5);
+
+            renderFlowchartIngredientsRef(recipe);
+            renderFlowchartPalette();
+            renderFlowchartSequence();
+            showScreen('screen-flowchart');
+        }
+
+        function renderFlowchartIngredientsRef(recipe) {
+            const refBox = document.getElementById('flowchart-recipe-ref');
+            refBox.innerHTML = `
+                <div class="text-xs font-bold text-amber-800 mb-1.5">ส่วนประกอบในสูตร: ${recipe.title}</div>
+                <div class="space-y-1">
+                    ${[...recipe.layers].sort().map((ingId) => {
+                        const ing = INGREDIENTS.find(i => i.id === ingId);
+                        return `
+                            <div class="flex items-center gap-2 bg-white px-2.5 py-1 rounded-lg border border-amber-200 text-xs">
+                                <span class="font-semibold text-slate-700">${ing.emoji} ${ing.name}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+
+            const ingGrid = document.getElementById('flowchart-ingredients-ref');
+            ingGrid.innerHTML = INGREDIENTS.map(ing => `
+                <div class="${ing.color} border rounded-xl p-1.5 flex items-center gap-1.5 text-[11px] font-bold text-slate-700">
+                    <span>${ing.emoji}</span>
+                    <span class="truncate">${ing.name}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderFlowchartPalette() {
+            const palette = document.getElementById('flowchart-blocks-palette');
+            palette.innerHTML = '';
+
+            flowchartBlocksPool.forEach(block => {
+                const isUsed = flowchartUserSequence.some(b => b.id === block.id);
+                const item = document.createElement('div');
+                item.draggable = !isUsed;
+
+                const shapeClass = block.type === 'terminator'
+                    ? 'flow-terminator bg-gradient-to-r from-rose-400 to-pink-500 text-white border-rose-600'
+                    : 'flow-process bg-gradient-to-r from-sky-400 to-indigo-500 text-white border-indigo-600';
+
+                item.className = `${shapeClass} border-2 px-4 py-2.5 font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition select-none ${
+                    isUsed ? 'opacity-35 cursor-not-allowed scale-95' : 'cursor-grab active:cursor-grabbing hover:scale-[1.03]'
+                }`;
+
+                item.innerHTML = `
+                    <span class="text-base pointer-events-none">${block.emoji}</span>
+                    <span class="pointer-events-none">${block.label}</span>
+                `;
+
+                if (!isUsed) {
+                    item.ondragstart = (e) => {
+                        e.dataTransfer.setData('text/flow-id', block.id);
+                        playSFX('click');
+                    };
+                    item.onclick = () => addFlowBlock(block.id);
+                }
+
+                palette.appendChild(item);
+            });
+        }
+
+        function handleFlowDragOver(e) {
+            e.preventDefault();
+            const ws = document.getElementById('flowchart-workspace');
+            ws.classList.add('bg-purple-100', 'border-purple-600');
+        }
+
+        function handleFlowDragLeave(e) {
+            const ws = document.getElementById('flowchart-workspace');
+            ws.classList.remove('bg-purple-100', 'border-purple-600');
+        }
+
+        function handleFlowDrop(e) {
+            e.preventDefault();
+            handleFlowDragLeave(e);
+            const blockId = e.dataTransfer.getData('text/flow-id');
+            if (blockId) {
+                addFlowBlock(blockId);
+            }
+        }
+
+        function addFlowBlock(blockId) {
+            if (flowchartUserSequence.length >= 7) return;
+            if (flowchartUserSequence.some(b => b.id === blockId)) return;
+
+            const block = flowchartBlocksPool.find(b => b.id === blockId);
+            if (!block) return;
+
+            playSFX('drop');
+            flowchartUserSequence.push(block);
+            renderFlowchartPalette();
+            renderFlowchartSequence();
+        }
+
+        function undoFlowStep() {
+            if (flowchartUserSequence.length === 0) return;
+            playSFX('remove');
+            flowchartUserSequence.pop();
+            renderFlowchartPalette();
+            renderFlowchartSequence();
+        }
+
+        function clearFlowchart() {
+            if (flowchartUserSequence.length === 0) return;
+            playSFX('remove');
+            flowchartUserSequence = [];
+            renderFlowchartPalette();
+            renderFlowchartSequence();
+        }
+
+        function renderFlowchartSequence() {
+            const list = document.getElementById('flowchart-sequence-list');
+            const placeholder = document.getElementById('flowchart-placeholder');
+            const countEl = document.getElementById('flow-step-count');
+
+            countEl.textContent = flowchartUserSequence.length;
+
+            if (flowchartUserSequence.length === 0) {
+                placeholder.classList.remove('hidden');
+                list.innerHTML = '';
+                return;
+            }
+
+            placeholder.classList.add('hidden');
+            list.innerHTML = '';
+
+            flowchartUserSequence.forEach((block, idx) => {
+                if (idx > 0) {
+                    const arrow = document.createElement('div');
+                    arrow.className = 'text-purple-600 font-bold text-lg leading-none my-0.5';
+                    arrow.textContent = '⬇️';
+                    list.appendChild(arrow);
+                }
+
+                const shapeClass = block.type === 'terminator'
+                    ? 'flow-terminator bg-gradient-to-r from-rose-400 to-pink-500 text-white border-rose-600 w-52 sm:w-60'
+                    : 'flow-process bg-gradient-to-r from-sky-400 to-indigo-500 text-white border-indigo-600 w-60 sm:w-72';
+
+                const node = document.createElement('div');
+                node.className = `${shapeClass} border-2 px-4 py-2 font-bold text-xs sm:text-sm shadow flex items-center justify-between ingredient-dropped`;
+                node.innerHTML = `
+                    <span class="bg-white/25 px-2 py-0.5 rounded-full text-[10px]">${idx + 1}</span>
+                    <span>${block.emoji} ${block.label}</span>
+                    <span class="w-4"></span>
+                `;
+                list.appendChild(node);
+            });
+        }
+
+        function checkFlowchart() {
+            const recipe = completedRecipeCard || SANDWICH_CARDS[0];
+            const expectedIds = [
+                'start',
+                ...recipe.layers.map((ingId, idx) => `step_${idx}_${ingId}`),
+                'end'
+            ];
+
+            const isCorrect =
+                flowchartUserSequence.length === expectedIds.length &&
+                flowchartUserSequence.every((block, idx) => block.id === expectedIds[idx]);
+
+            const modal = document.getElementById('modal-result');
+            const box = document.getElementById('result-box');
+            const emoji = document.getElementById('result-emoji');
+            const title = document.getElementById('result-title');
+            const msg = document.getElementById('result-message');
+            const explanationBox = document.getElementById('result-explanation');
+            const timeBadge = document.getElementById('result-time-badge');
+            const btn = document.getElementById('result-action-btn');
+
+            timeBadge.classList.add('hidden');
+
+            if (isCorrect) {
+                playSFX('win');
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+                }
+
+                const s2Seconds = Math.max(1, Math.round((Date.now() - flowchartStartTime) / 1000));
+                const s2TimeFormatted = formatTime(s2Seconds);
+
+                // ส่งข้อมูลผ่านครบทั้ง 2 ด่านเข้า Google Sheets ของคุณครู
+                sendScoreToGoogleSheets(
+                    `${currentStudent.firstName || 'นักเรียน'} ${currentStudent.lastName || ''}`.trim(),
+                    currentStudent.className || '-',
+                    recipe.title,
+                    stage1FinalTime,
+                    s2TimeFormatted,
+                    "ผ่านครบทั้ง 2 ด่าน (เชฟนักคิดตัวจริง)"
+                );
+
+                box.className = 'bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full border-4 border-indigo-400 shadow-2xl text-center';
+                emoji.textContent = '🏆👨‍🍳🧠';
+                title.className = 'font-cute text-2xl sm:text-3xl font-bold text-indigo-600 mb-2';
+                title.textContent = 'เก่งมากคุณเป็นเชฟนักคิดตัวจริง';
+                msg.textContent = 'คุณเรียงลำดับอัลกอริทึมผังงาน (Flowchart) การทำแซนด์วิชได้ถูกต้องสมบูรณ์แบบ!';
+
+                const firstIng = INGREDIENTS.find(i => i.id === recipe.layers[0]).name;
+                const lastIng = INGREDIENTS.find(i => i.id === recipe.layers[recipe.layers.length - 1]).name;
+                explanationBox.innerHTML = `
+                    <div class="font-cute font-bold text-indigo-700 text-sm sm:text-base mb-1">💡 ทบทวนกันอีกครั้ง: ทำไมต้องเรียงแบบนี้?</div>
+                    <p>1. <b>จุดเริ่มต้น (Start):</b> ทุกอัลกอริทึมต้องเริ่มที่สัญลักษณ์แคปซูล "เริ่มต้น" เสมอ เพื่อบอกจุดเริ่มทำงาน</p>
+                    <p>2. <b>ลำดับขั้นตอน (Sequence):</b> ต้องวางฐานด้านล่างก่อน (<b>${firstIng}</b>) แล้วค่อยซ้อนไส้ทีละชั้นจากล่างขึ้นบน จนปิดท้ายด้วย <b>${lastIng}</b> หากสลับลำดับ แซนด์วิชจะพังหรือไม่ตรงตามสูตร</p>
+                    <p>3. <b>จุดสิ้นสุด (End):</b> เมื่อทำครบทุกขั้นตอนแล้ว ต้องปิดด้วยสัญลักษณ์ "สิ้นสุด" เพื่อบอกให้รู้ว่างานเสร็จสมบูรณ์แล้ว</p>
+                `;
+                explanationBox.classList.remove('hidden');
+
+                btn.className = 'btn-game w-full py-3.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-cute font-bold text-xl rounded-2xl';
+                btn.textContent = 'ยอดเยี่ยม! กลับสู่หน้าหลัก 🏠';
+                btn.onclick = () => {
+                    playSFX('click');
+                    modal.classList.add('hidden');
+                    showScreen('screen-home');
+                };
+
+                modal.classList.remove('hidden');
+            } else {
+                playSFX('error');
+                box.className = 'bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full border-4 border-rose-400 shadow-2xl text-center animate-shake';
+                emoji.textContent = '🧐';
+                title.className = 'font-cute text-3xl sm:text-4xl font-bold text-rose-500 mb-2';
+                title.textContent = 'ลองใหม่อีกครั้ง';
+                msg.textContent = 'ลำดับผังงานยังไม่ถูกต้อง ลองคิดทบทวนขั้นตอนการทำงานตั้งแต่เริ่มจนจบใหม่อีกครั้งนะ!';
+                explanationBox.classList.add('hidden');
+
+                btn.className = 'btn-game w-full py-3.5 bg-gradient-to-r from-rose-400 to-pink-500 text-white font-cute font-bold text-xl rounded-2xl';
+                btn.textContent = 'ตกลง ลองใหม่อีกครั้ง! 💪';
+                btn.onclick = () => {
+                    playSFX('click');
+                    modal.classList.add('hidden');
+                };
+
+                modal.classList.remove('hidden');
+            }
+        }
+
+        // =========================================================================
+        // 11. ระบบแอดมินหลังบ้านสำหรับคุณครู (LocalStorage & CSV Export)
+        // =========================================================================
+        const STORAGE_KEY = 'sandwich_game_scores_v1';
+
+        function saveScoreToAdmin() {
+            const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            records.push({
+                id: Date.now(),
+                firstName: currentStudent.firstName,
+                lastName: currentStudent.lastName,
+                className: currentStudent.className,
+                cardTitle: selectedCard.title,
+                attempts: attemptCount,
+                seconds: secondsElapsed,
+                timeFormatted: formatTime(secondsElapsed),
+                timestamp: new Date().toLocaleString('th-TH')
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+        }
+
+        function openAdminModal() {
+            playSFX('click');
+            document.getElementById('admin-password').value = '';
+            document.getElementById('admin-error').classList.add('hidden');
+            document.getElementById('admin-login-section').classList.remove('hidden');
+            document.getElementById('admin-dashboard-section').classList.add('hidden');
+            document.getElementById('modal-admin').classList.remove('hidden');
+        }
+
+        function closeAdminModal() {
+            playSFX('click');
+            document.getElementById('modal-admin').classList.add('hidden');
+        }
+
+        function verifyAdmin() {
+            const pass = document.getElementById('admin-password').value;
+            if (pass === '17012007') {
+                playSFX('win');
+                document.getElementById('admin-login-section').classList.add('hidden');
+                document.getElementById('admin-dashboard-section').classList.remove('hidden');
+                renderAdminDashboard();
+            } else {
+                playSFX('error');
+                document.getElementById('admin-error').classList.remove('hidden');
+            }
+        }
+
+        function renderAdminDashboard() {
+            const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            const tbody = document.getElementById('admin-table-body');
+            const totalEl = document.getElementById('stat-total-students');
+            const passedEl = document.getElementById('stat-passed-students');
+            const avgEl = document.getElementById('stat-avg-time');
+            
+            if (totalEl) totalEl.textContent = `${records.length} คน`;
+            if (passedEl) passedEl.textContent = `${records.length} คน`;
+
+            if (avgEl) {
+                if (records.length > 0) {
+                    const avgSec = Math.round(records.reduce((sum, r) => sum + r.seconds, 0) / records.length);
+                    avgEl.textContent = formatTime(avgSec);
+                } else {
+                    avgEl.textContent = '00:00';
+                }
+            }
+
+            if (records.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="p-8 text-center text-slate-400">ยังไม่มีข้อมูลนักเรียนที่เล่นเกมเสร็จ</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = records.map((rec, idx) => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3 font-bold text-slate-600">${idx + 1}</td>
+                    <td class="p-3 font-semibold text-slate-800">${rec.firstName} ${rec.lastName}</td>
+                    <td class="p-3 text-slate-600">${rec.className}</td>
+                    <td class="p-3 text-amber-700 font-medium">${rec.cardTitle}</td>
+                    <td class="p-3 text-center">${rec.attempts}</td>
+                    <td class="p-3 text-center font-mono font-bold text-sky-600">${rec.timeFormatted}</td>
+                    <td class="p-3 text-center">
+                        <span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-bold">
+                            ผ่าน (10/10)
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function clearAllRecords() {
+            playSFX('remove');
+            localStorage.removeItem(STORAGE_KEY);
+            renderAdminDashboard();
+        }
+
+        function exportCSV() {
+            playSFX('click');
+            const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            if (records.length === 0) return;
+
+            let csvContent = "\uFEFFลำดับ,ชื่อ,นามสกุล,ชั้นเรียน,การ์ดที่เลือก,จำนวนครั้งที่ลอง,เวลาที่ใช้,สถานะ,วันเวลาที่บันทึก\n";
+            records.forEach((r, idx) => {
+                csvContent += `${idx + 1},"${r.firstName}","${r.lastName}","${r.className}","${r.cardTitle}",${r.attempts},"${r.timeFormatted}","ผ่าน (10/10)","${r.timestamp}"\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `คะแนนเกมทำแซนด์วิช_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // =========================================================================
+        // 12. ระบบอัปโหลดและบันทึกภาพพื้นหลังถาวรด้วย IndexedDB
+        // =========================================================================
+        const BG_DB_NAME = 'SandwichGameBgDB';
+        const BG_STORE_NAME = 'backgrounds';
+        const BG_KEY = 'permanent_bg';
+
+        function openBgDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(BG_DB_NAME, 1);
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(BG_STORE_NAME)) {
+                        db.createObjectStore(BG_STORE_NAME);
+                    }
+                };
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = (event) => reject(event.target.error);
+            });
+        }
+
+        function showBgStatus(text, isError = false) {
+            const statusEl = document.getElementById('bg-save-status');
+            if (!statusEl) return;
+            statusEl.textContent = text;
+            statusEl.className = isError
+                ? 'text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-2 rounded-xl mb-3 text-center'
+                : 'text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl mb-3 text-center';
+            statusEl.classList.remove('hidden');
+            setTimeout(() => {
+                statusEl.classList.add('hidden');
+            }, 4000);
+        }
+
+        async function applySavedBackground() {
+            try {
+                const db = await openBgDatabase();
+                const tx = db.transaction(BG_STORE_NAME, 'readonly');
+                const store = tx.objectStore(BG_STORE_NAME);
+                const req = store.get(BG_KEY);
+
+                req.onsuccess = () => {
+                    if (req.result) {
+                        document.body.style.backgroundImage = `url('${req.result}')`;
+                    }
+                };
+            } catch (err) {
+                const fallbackBg = localStorage.getItem('sandwich_game_custom_bg');
+                if (fallbackBg) {
+                    document.body.style.backgroundImage = `url('${fallbackBg}')`;
+                }
+            }
+        }
+
+        function uploadCustomBg(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const dataUrl = e.target.result;
+                document.body.style.backgroundImage = `url('${dataUrl}')`;
+
+                try {
+                    const db = await openBgDatabase();
+                    const tx = db.transaction(BG_STORE_NAME, 'readwrite');
+                    const store = tx.objectStore(BG_STORE_NAME);
+                    store.put(dataUrl, BG_KEY);
+
+                    tx.oncomplete = () => {
+                        playSFX('win');
+                        showBgStatus('✅ บันทึกภาพพื้นหลังถาวรเรียบร้อยแล้ว! (ปิดเว็บเข้าใหม่ภาพก็ยังอยู่)');
+                    };
+                    tx.onerror = () => {
+                        playSFX('error');
+                        showBgStatus('⚠️ ไม่สามารถบันทึกภาพได้ กรุณาลองใหม่อีกครั้ง', true);
+                    };
+                } catch (err) {
+                    try {
+                        localStorage.setItem('sandwich_game_custom_bg', dataUrl);
+                        playSFX('win');
+                        showBgStatus('✅ บันทึกภาพพื้นหลังเรียบร้อยแล้ว!');
+                    } catch (e2) {
+                        playSFX('error');
+                        showBgStatus('⚠️ ไฟล์รูปภาพมีขนาดใหญ่เกินไป', true);
+                    }
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function resetCustomBg() {
+            playSFX('remove');
+            document.body.style.backgroundImage = "url('https://i.pinimg.com/736x/07/12/26/0712261eb2f2d2d5a93812e1a360af7d.jpg')";
+            localStorage.removeItem('sandwich_game_custom_bg');
+            try {
+                const db = await openBgDatabase();
+                const tx = db.transaction(BG_STORE_NAME, 'readwrite');
+                const store = tx.objectStore(BG_STORE_NAME);
+                store.delete(BG_KEY);
+                tx.oncomplete = () => {
+                    showBgStatus('🔄 รีเซ็ตภาพพื้นหลังกลับเป็นค่าเริ่มต้นเรียบร้อยแล้ว');
+                };
+            } catch (err) {}
+        }
+
+        async function applyBgFromUrl() {
+            const urlInput = document.getElementById('custom-bg-url-input');
+            const url = urlInput ? urlInput.value.trim() : '';
+            if (!url) {
+                playSFX('error');
+                showBgStatus('⚠️ กรุณาวางลิงก์รูปภาพก่อนกดปุ่มครับ', true);
+                return;
+            }
+
+            if (url.includes('pinterest.com/pin/')) {
+                playSFX('error');
+                showBgStatus('⚠️ ลิงก์นี้เป็นหน้าเว็บ Pinterest ให้คลิกขวาที่รูปภาพบน Pinterest แล้วเลือก "คัดลอกที่อยู่รูปภาพ (Copy image address)" มาวางแทนครับ', true);
+                return;
+            }
+
+            const testImg = new Image();
+            testImg.onload = async function() {
+                document.body.style.backgroundImage = `url('${url}')`;
+                try {
+                    const db = await openBgDatabase();
+                    const tx = db.transaction(BG_STORE_NAME, 'readwrite');
+                    const store = tx.objectStore(BG_STORE_NAME);
+                    store.put(url, BG_KEY);
+                    tx.oncomplete = () => {
+                        playSFX('win');
+                        showBgStatus('✅ บันทึกภาพพื้นหลังจากลิงก์ถาวรเรียบร้อยแล้ว!');
+                    };
+                } catch (err) {
+                    localStorage.setItem('sandwich_game_custom_bg', url);
+                    playSFX('win');
+                    showBgStatus('✅ บันทึกภาพพื้นหลังจากลิงก์เรียบร้อยแล้ว!');
+                }
+            };
+            testImg.onerror = function() {
+                playSFX('error');
+                showBgStatus('⚠️ ไม่สามารถดึงรูปภาพจากลิงก์นี้ได้ ลองคลิกขวาที่รูปแล้วเลือก "คัดลอกที่อยู่รูปภาพ" อีกครั้งครับ', true);
+            };
+            testImg.src = url;
+        }
+
+        window.addEventListener('DOMContentLoaded', applySavedBackground);
+        applySavedBackground();
+    </script>
+</body>
+</html>
